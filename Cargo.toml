@@ -1,6 +1,6 @@
 [package]
 name = "gb-strudel"
-version = "0.1.2"
+version = "1.0.0"
 edition = "2024"
 description = "Compose Game Boy music with Strudel-style patterns and export hUGETracker .uge files for GB Studio"
 license = "MIT"

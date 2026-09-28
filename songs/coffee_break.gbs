@@ -3,7 +3,7 @@
 
 name   = Coffee Break
 artist = gb-strudel
-tempo  = 6              # ticks per row: 60Hz / 6 = 10 rows per second
+tempo  = 2
 
 # Lead: 50% pulse, syncopated melody over the changes.
 pulse1 = 8 | c4 ~ a3 c4 | d4 ~ c4 ~ | as3 d4 c4 as3 | a3 ~ g3 ~

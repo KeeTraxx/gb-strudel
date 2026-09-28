@@ -50,6 +50,37 @@ sweep unit, `wave` plays a 32-sample wavetable, and `noise` is the LFSR:
 | `wave`   | 32-sample wavetable | bass                     |
 | `noise`  | LFSR noise          | drums                    |
 
+### Tempo
+
+`tempo` is ticks per row, not BPM. The driver ticks at 60 Hz and every bar is
+64 rows, so how fast a song feels depends on how many beats you write into a
+bar:
+
+```
+bpm = 3600 / (tempo * rows_per_beat)        rows_per_beat = 64 / beats_per_bar
+```
+
+| `tempo` | 4 beats per bar (16 rows/beat) | 8 beats per bar (8 rows/beat) |
+|---------|--------------------------------|-------------------------------|
+| 1       | 225                            | 450                           |
+| 2       | 112.5                          | 225                           |
+| 3       | 75                             | 150                           |
+| 4       | 56.25                          | 112.5                         |
+| 5       | 45                             | 90                            |
+| 6       | 37.5                           | 75                            |
+| 8       | 28.1                           | 56.25                         |
+
+`tempo` only takes whole numbers, so the available speeds are coarse. To get
+something in between, change the meter instead of the tempo. For example, at
+`tempo = 5`, writing eight beats per bar gives 90 BPM, which no whole `tempo`
+value reaches with four beats per bar. The trade-off is resolution: a bar
+always has 64 rows, so with eight beats per bar a sixteenth note is only 2
+rows, and a 32nd note no longer fits.
+
+These figures assume the 60 Hz tick that the preview uses. When the driver
+runs off the frame interrupt, real hardware ticks at ~59.7 Hz, about half a
+percent slower.
+
 ## Pattern notation
 
 Steps split each bar evenly, so `c4 e4 g4 c5` is four quarter notes and

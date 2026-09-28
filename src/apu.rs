@@ -6,7 +6,7 @@
 //! waves with selectable duty, the wave channel reads a 32-sample table, and
 //! noise uses the console's 15-bit LFSR.
 
-use crate::uge::{Song, CHANNELS, NO_NOTE, ROWS_PER_PATTERN};
+use crate::uge::{CHANNELS, NO_NOTE, ROWS_PER_PATTERN, Song};
 
 pub const SAMPLE_RATE: u32 = 48_000;
 /// The driver ticks at the Game Boy's vertical blank rate.
@@ -146,8 +146,8 @@ impl Renderer {
         for step in 0..seq {
             for row in 0..ROWS_PER_PATTERN {
                 let mut slot = [None; CHANNELS];
-                for ch in 0..CHANNELS {
-                    let Some(&pat) = song.orders[ch].get(step) else {
+                for (note, order) in slot.iter_mut().zip(&song.orders) {
+                    let Some(&pat) = order.get(step) else {
                         continue;
                     };
                     let Some(pattern) = song.patterns.get(pat as usize) else {
@@ -155,7 +155,7 @@ impl Renderer {
                     };
                     let cell = pattern[row];
                     if cell.note < NO_NOTE {
-                        slot[ch] = Some(cell.note);
+                        *note = Some(cell.note);
                     }
                 }
                 out.push(slot);
@@ -173,7 +173,9 @@ impl Renderer {
     /// Render the whole song to mono f32 samples at [`SAMPLE_RATE`].
     pub fn render(&mut self, song: &Song) -> Vec<f32> {
         let stems = self.render_stems(song);
-        (0..stems[0].len()).map(|i| mix(&stems, i, [true; CHANNELS])).collect()
+        (0..stems[0].len())
+            .map(|i| mix(&stems, i, [true; CHANNELS]))
+            .collect()
     }
 
     /// Render each channel separately, unscaled, so a player can mute

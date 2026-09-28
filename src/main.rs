@@ -60,31 +60,20 @@ fn take_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     Some(v)
 }
 
+/// GB Studio's stock template, compiled in so an installed binary does not
+/// depend on the source tree.
+const BUNDLED_TEMPLATE: &[u8] = include_bytes!("../templates/template.uge");
+
 /// The instrument/wavetable donor. Every generated song inherits hUGETracker's
 /// stock instruments this way, so output is playable without designing any.
 fn load_template(explicit: Option<PathBuf>) -> Result<uge::Song, String> {
-    let candidates: Vec<PathBuf> = match explicit {
-        Some(p) => vec![p],
-        None => vec![
-            PathBuf::from("templates/template.uge"),
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("templates/template.uge"),
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/template.uge"),
-        ],
-    };
-    for c in &candidates {
-        if c.exists() {
-            let data = fs::read(c).map_err(|e| format!("{}: {e}", c.display()))?;
-            return uge::Song::parse(&data).map_err(|e| format!("{}: {e}", c.display()));
+    match explicit {
+        Some(path) => {
+            let data = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            uge::Song::parse(&data).map_err(|e| format!("{}: {e}", path.display()))
         }
+        None => uge::Song::parse(BUNDLED_TEMPLATE).map_err(|e| format!("bundled template: {e}")),
     }
-    Err(format!(
-        "no template .uge found (looked in {})",
-        candidates
-            .iter()
-            .map(|c| c.display().to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    ))
 }
 
 /// Load either a song source file or an existing `.uge`.
@@ -143,7 +132,11 @@ fn run(args: &[String]) -> Result<(), String> {
             if stems[0].is_empty() {
                 return Err("song has no rows to play".into());
             }
-            let title = if s.name.is_empty() { input.clone() } else { s.name.clone() };
+            let title = if s.name.is_empty() {
+                input.clone()
+            } else {
+                s.name.clone()
+            };
             player::play(&title, stems, apu::Renderer::samples_per_row(&s))
         }
         "wav" => {

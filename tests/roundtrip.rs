@@ -43,6 +43,13 @@ fn roundtrips_every_v6_fixture() {
         }
     }
 
-    assert!(failures.is_empty(), "round-trip failures:\n{}", failures.join("\n"));
-    assert!(checked >= 12, "expected to check the bundled fixtures, got {checked}");
+    assert!(
+        failures.is_empty(),
+        "round-trip failures:\n{}",
+        failures.join("\n")
+    );
+    assert!(
+        checked >= 12,
+        "expected to check the bundled fixtures, got {checked}"
+    );
 }

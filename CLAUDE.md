@@ -31,9 +31,12 @@ Pipeline: `.gbs` text → `song::parse_song_file` → `SongDef` → `SongDef::co
 
 ### Templates / instruments
 
-The tool never creates instruments. `compile` clones a template `.uge` (default `templates/template.uge`, overridable with `--template`) and replaces only the name, artist, comment, tempo, patterns, orders and padding. An instrument number in a `.gbs` file is an index (1–15) into that channel's separate bank, and the pulse channels share one bank.
+The tool never creates instruments. `compile` clones a template `.uge` (default `templates/template.uge`, embedded with `include_bytes!` so installed binaries don't need the source tree; overridable with `--template`) and replaces only the name, artist, comment, tempo, patterns, orders and padding. An instrument number in a `.gbs` file is an index (1–15) into that channel's separate bank, and the pulse channels share one bank.
 
 ## Conventions and gotchas
+
+- **CI** (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy -- -D warnings` (binary only; test crates are full of `#[path]` dead-code warnings), `cargo test` and `cargo package`. Run these before committing.
+- **Releases** are cut by release-plz from conventional commit messages. Don't bump `version` by hand. A new file the binary needs at build time must be added to `include` in `Cargo.toml`, or the published crate won't build.
 
 - **There is no lib crate.** Integration tests pull modules in with `#[path = "../src/uge.rs"] mod uge;` and similar. Modules reference each other through `crate::uge`, so any test that includes `pattern.rs` or `song.rs` must also declare `mod uge`. A new module dependency means updating those `#[path]` lists in `tests/`. Items used only by some test crates need `#[allow(dead_code)]`.
 - **`tests/roundtrip.rs` is the format spec.** Every `.uge` in `tests/fixtures/` must parse and re-serialize byte-for-byte. Any writer change must keep this test passing. v5 files are intentionally unsupported.

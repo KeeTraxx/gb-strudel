@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: fmt, clippy, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # cpal links against ALSA on Linux.
+      - name: Install ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      # Binary only: the integration tests pull in modules with #[path], so
+      # items the binary uses look dead to each test crate.
+      - run: cargo clippy -- -D warnings
+      - run: cargo test
+      # Build the package exactly as crates.io would receive it, so a missing
+      # `include` entry fails here and not at release time.
+      - run: cargo package

@@ -66,7 +66,7 @@ pub fn parse_note(s: &str) -> Option<u32> {
         _ => return None,
     };
     let mut i = 1;
-    let mut semis = base as i32;
+    let mut semis: i32 = base;
     while i < b.len() {
         match b[i] {
             b'#' => {

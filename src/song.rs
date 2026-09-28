@@ -12,7 +12,7 @@
 //! | noise   | LFSR noise    | drums                    |
 
 use crate::pattern::{self, Event, Step};
-use crate::uge::{Cell, Song, CHANNELS, ROWS_PER_PATTERN};
+use crate::uge::{CHANNELS, Cell, ROWS_PER_PATTERN, Song};
 use std::collections::BTreeMap;
 
 /// One bar of a channel: mini-notation plus the instrument it plays with.
@@ -112,7 +112,11 @@ impl SongDef {
         Ok(out)
     }
 
-    fn render_bar(&self, part: &Part, bar: usize) -> Result<[Cell; ROWS_PER_PATTERN], pattern::ParseError> {
+    fn render_bar(
+        &self,
+        part: &Part,
+        bar: usize,
+    ) -> Result<[Cell; ROWS_PER_PATTERN], pattern::ParseError> {
         let mut cells = [Cell::EMPTY; ROWS_PER_PATTERN];
         if part.bars.is_empty() {
             return Ok(cells);
@@ -189,13 +193,19 @@ fn expand<'a>(
             continue;
         }
         for token in chunk.split_whitespace() {
-            let reference = token
-                .strip_prefix('&')
-                .ok_or_else(|| format!("line {at}: '{token}' is in a bar of references; put notes in their own bar"))?;
+            let reference = token.strip_prefix('&').ok_or_else(|| {
+                format!(
+                    "line {at}: '{token}' is in a bar of references; put notes in their own bar"
+                )
+            })?;
             let (name, times) = match reference.split_once('*') {
                 Some((name, n)) => match n.parse::<usize>() {
                     Ok(n) if n > 0 => (name, n),
-                    _ => return Err(format!("line {at}: '{token}' needs a positive repeat count")),
+                    _ => {
+                        return Err(format!(
+                            "line {at}: '{token}' needs a positive repeat count"
+                        ));
+                    }
                 },
                 None => (reference, 1),
             };
@@ -203,8 +213,15 @@ fn expand<'a>(
                 .get_key_value(name)
                 .ok_or_else(|| format!("line {at}: '&{name}' is not defined"))?;
             if stack.contains(&name) {
-                let chain: Vec<String> = stack.iter().chain([&name]).map(|n| format!("&{n}")).collect();
-                return Err(format!("line {at}: circular reference {}", chain.join(" -> ")));
+                let chain: Vec<String> = stack
+                    .iter()
+                    .chain([&name])
+                    .map(|n| format!("&{n}"))
+                    .collect();
+                return Err(format!(
+                    "line {at}: circular reference {}",
+                    chain.join(" -> ")
+                ));
             }
             stack.push(name);
             let expanded = expand(def, defs, stack)?;
@@ -261,12 +278,17 @@ pub fn parse_song_file(src: &str) -> Result<SongDef, String> {
 
         if let Some(name) = key.strip_prefix('&') {
             let valid = !name.is_empty()
-                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+                && name
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
             if !valid {
                 return Err(format!("line {lineno}: '&{name}' is not a valid name"));
             }
             if let Some(prev) = defs.insert(name, RawLine { lineno, value }) {
-                return Err(format!("line {lineno}: '&{name}' is already defined on line {}", prev.lineno));
+                return Err(format!(
+                    "line {lineno}: '&{name}' is already defined on line {}",
+                    prev.lineno
+                ));
             }
             continue;
         }
@@ -286,7 +308,9 @@ pub fn parse_song_file(src: &str) -> Result<SongDef, String> {
                         .map_err(|_| format!("line {lineno}: '{value}' is not a bar count"))?,
                 )
             }
-            "pulse1" | "pulse2" | "wave" | "noise" => channels.push((key, RawLine { lineno, value })),
+            "pulse1" | "pulse2" | "wave" | "noise" => {
+                channels.push((key, RawLine { lineno, value }))
+            }
             other => return Err(format!("line {lineno}: unknown key '{other}'")),
         }
     }

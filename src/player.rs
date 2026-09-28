@@ -48,7 +48,11 @@ impl Drop for RawMode {
 ///
 /// When stdin is not a terminal there is nothing to read keys from, so the
 /// song plays through once without controls.
-pub fn play(title: &str, stems: [Vec<f32>; CHANNELS], samples_per_row: usize) -> Result<(), String> {
+pub fn play(
+    title: &str,
+    stems: [Vec<f32>; CHANNELS],
+    samples_per_row: usize,
+) -> Result<(), String> {
     let len = stems[0].len();
     let interactive = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let shared = Arc::new(Shared {
@@ -94,13 +98,18 @@ pub fn play(title: &str, stems: [Vec<f32>; CHANNELS], samples_per_row: usize) ->
                     };
                     out.fill(v);
                 }
-                state.position.store(((frame as f64 * ratio) as usize).min(len), Ordering::Relaxed);
+                state.position.store(
+                    ((frame as f64 * ratio) as usize).min(len),
+                    Ordering::Relaxed,
+                );
             },
             |e| eprintln!("audio error: {e}"),
             None,
         )
         .map_err(|e| format!("could not open audio stream: {e}"))?;
-    stream.play().map_err(|e| format!("could not start playback: {e}"))?;
+    stream
+        .play()
+        .map_err(|e| format!("could not start playback: {e}"))?;
 
     let total = duration(len);
     if !interactive {
@@ -152,14 +161,28 @@ pub fn play(title: &str, stems: [Vec<f32>; CHANNELS], samples_per_row: usize) ->
 
 /// The status block, one string per terminal line:
 /// title and position on top, one line per channel, keys at the bottom.
-fn status_screen(title: &str, shared: &Shared, len: usize, bars: usize, samples_per_row: usize) -> Vec<String> {
+fn status_screen(
+    title: &str,
+    shared: &Shared,
+    len: usize,
+    bars: usize,
+    samples_per_row: usize,
+) -> Vec<String> {
     let pos = shared.position.load(Ordering::Relaxed);
     let bar = (pos / (samples_per_row * ROWS_PER_PATTERN).max(1) + 1).min(bars.max(1));
     let finished = shared.finished.load(Ordering::Relaxed);
     let repeat = shared.repeat.load(Ordering::Relaxed);
 
-    let state = if finished { "■".dark_grey() } else { "▶".green() };
-    let repeat = if repeat { "on".green() } else { "off".dark_grey() };
+    let state = if finished {
+        "■".dark_grey()
+    } else {
+        "▶".green()
+    };
+    let repeat = if repeat {
+        "on".green()
+    } else {
+        "off".dark_grey()
+    };
     let mut lines = vec![
         title.bold().to_string(),
         format!(

@@ -7,10 +7,18 @@ can hear a change without opening the engine.
 Inspired by [Strudel](https://strudel.cc) / TidalCycles pattern notation, but
 targeting the Game Boy's four hardware channels instead of Web Audio.
 
+## Install
+
+```sh
+cargo install gb-strudel
+```
+
+On Linux, `play` needs ALSA, so install its headers first (`libasound2-dev`
+on Debian/Ubuntu, `alsa-lib` on Arch, `alsa-lib-devel` on Fedora).
+
 ## Usage
 
 ```sh
-cargo build --release
 
 gb-strudel build songs/coffee_break.gbs      # -> songs/coffee_break.uge
 gb-strudel play  songs/coffee_break.gbs      # preview through the speakers
@@ -161,7 +169,8 @@ Note naming follows scientific pitch, verified against the driver's own
 
 This tool composes patterns; it does not design instruments. Every build copies
 the instrument and wavetable definitions verbatim from a template `.uge` —
-`templates/template.uge`, GB Studio's own, unless you pass `--template`. To use
+GB Studio's own `templates/template.uge`, which is compiled into the binary,
+unless you pass `--template`. To use
 custom instruments, design them in hUGETracker, save, and point `--template` at
 that file.
 
@@ -242,3 +251,18 @@ Two details worth knowing if you touch the writer:
 ```sh
 cargo test
 ```
+
+## Releasing
+
+Releases are automated with [release-plz](https://release-plz.dev). Every push
+to `main` updates a release PR that bumps the version and extends
+`CHANGELOG.md` from the commit messages, so write them as
+[conventional commits](https://www.conventionalcommits.org) (`feat:`, `fix:`,
+`chore:` ...). Merging that PR publishes to crates.io and creates a GitHub
+release. Don't edit the version in `Cargo.toml` by hand.
+
+## License
+
+MIT, see [LICENSE](LICENSE). `templates/template.uge` is from
+[GB Studio](https://github.com/chrismaltby/gb-studio) and ships under its MIT
+license, see [templates/LICENSE-GB-STUDIO](templates/LICENSE-GB-STUDIO).

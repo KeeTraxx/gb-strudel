@@ -4,12 +4,12 @@
 use std::fs;
 use std::path::Path;
 
-#[path = "../src/uge.rs"]
-mod uge;
 #[path = "../src/pattern.rs"]
 mod pattern;
 #[path = "../src/song.rs"]
 mod song;
+#[path = "../src/uge.rs"]
+mod uge;
 
 fn template() -> uge::Song {
     let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("templates/template.uge");
@@ -66,7 +66,10 @@ fn notes_land_on_the_right_rows_with_the_right_instrument() {
 fn a_bad_note_fails_the_build_instead_of_going_silent() {
     let bad = "name = X\npulse1 = 1 | c4 zz g4\n";
     let def = song::parse_song_file(bad).expect("file parses");
-    assert!(def.compile(&template()).is_err(), "expected a pattern error");
+    assert!(
+        def.compile(&template()).is_err(),
+        "expected a pattern error"
+    );
 }
 
 #[test]
@@ -87,7 +90,10 @@ fn unknown_keys_are_rejected() {
 }
 
 fn bar_list(part: &song::Part) -> Vec<(&str, u32)> {
-    part.bars.iter().map(|b| (b.src.as_str(), b.instrument)).collect()
+    part.bars
+        .iter()
+        .map(|b| (b.src.as_str(), b.instrument))
+        .collect()
 }
 
 #[test]
@@ -123,7 +129,14 @@ pulse1 = &a &b*2 &a
     let def = song::parse_song_file(src).expect("forward references resolve");
     assert_eq!(
         bar_list(&def.pulse1),
-        vec![("c4", 1), ("d4", 2), ("e4", 2), ("d4", 2), ("e4", 2), ("c4", 1)]
+        vec![
+            ("c4", 1),
+            ("d4", 2),
+            ("e4", 2),
+            ("d4", 2),
+            ("e4", 2),
+            ("c4", 1)
+        ]
     );
 }
 
@@ -156,6 +169,9 @@ fn bad_references_are_rejected() {
         "& = 1 | c4\n",
     ];
     for src in cases {
-        assert!(song::parse_song_file(src).is_err(), "expected an error for {src:?}");
+        assert!(
+            song::parse_song_file(src).is_err(),
+            "expected an error for {src:?}"
+        );
     }
 }

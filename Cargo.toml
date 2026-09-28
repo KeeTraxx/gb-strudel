@@ -2,6 +2,22 @@
 name = "gb-strudel"
 version = "0.1.0"
 edition = "2024"
+description = "Compose Game Boy music with Strudel-style patterns and export hUGETracker .uge files for GB Studio"
+license = "MIT"
+repository = "https://github.com/KeeTraxx/gb-strudel"
+readme = "README.md"
+keywords = ["gameboy", "music", "tracker", "gb-studio", "chiptune"]
+categories = ["command-line-utilities", "multimedia::audio", "game-development"]
+# Only what building and using the binary needs. The .uge test fixtures stay
+# in the repository, so `cargo test` runs from a git checkout, not the crate.
+include = [
+    "/src",
+    "/templates",
+    "/songs/*.gbs",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+]
 
 [dependencies]
 cpal = "0.18.2"

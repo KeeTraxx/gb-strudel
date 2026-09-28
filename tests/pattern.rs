@@ -1,11 +1,11 @@
 //! Tests for the mini-notation: note naming, timing, and the group forms.
 
-#[path = "../src/uge.rs"]
-mod uge;
 #[path = "../src/pattern.rs"]
 mod pattern;
+#[path = "../src/uge.rs"]
+mod uge;
 
-use pattern::{parse, parse_note, render, Event, Step};
+use pattern::{Event, Step, parse, parse_note, render};
 
 #[test]
 fn note_names_match_the_hardware_table() {

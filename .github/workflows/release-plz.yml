@@ -1,0 +1,59 @@
+# Opens a release PR (version bump + CHANGELOG) on every push to main, and
+# publishes to crates.io + tags a GitHub release when that PR is merged.
+# See https://release-plz.dev/docs/github/quickstart
+name: Release-plz
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-plz-release:
+    name: Release-plz release
+    if: ${{ github.repository_owner == 'KeeTraxx' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      # crates.io trusted publishing: no long-lived registry token needed.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # `cargo publish` verifies the build, and cpal links against ALSA.
+      - name: Install ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-plz-pr:
+    name: Release-plz PR
+    if: ${{ github.repository_owner == 'KeeTraxx' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

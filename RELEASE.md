@@ -99,15 +99,65 @@ features_always_increment_minor = true
 
 ## Choosing the version yourself
 
-When the computed version is wrong (a breaking change without `!`, or going to
-1.0), change it on the release PR before merging. Either edit `version` in
-`Cargo.toml` on the PR branch, or check out the branch and run:
+release-plz only proposes a version. You can release a different one, for
+example:
 
-```sh
-cargo install release-plz --locked
-release-plz set-version 1.0.0
-git commit -am "chore: release v1.0.0" && git push
-```
+- **Going to 1.0.0, or any other major bump.** Below 1.0 even a breaking
+  commit only bumps the minor version, so release-plz never proposes 1.0.0 on
+  its own.
+- **A breaking change that was committed without `!`.** It gets a patch bump
+  instead of a minor one.
+- **A minor bump for a release that only has `fix:` commits.**
+
+Change the version on the release PR, right before you merge it:
+
+1. Check out the PR branch. Its name starts with `release-plz-`:
+
+   ```sh
+   gh pr checkout <PR number>
+   ```
+
+2. Set the version. This edits `version` in `Cargo.toml` and the heading of the
+   new `CHANGELOG.md` section:
+
+   ```sh
+   cargo install release-plz --locked   # once
+   release-plz set-version 1.0.0
+   cargo check                          # updates the version in Cargo.lock
+   ```
+
+3. Check the diff. It should change only `Cargo.toml`, `Cargo.lock` and
+   `CHANGELOG.md`, and the changelog heading should now read `[1.0.0]`. Update
+   the PR title to match. The release is named after the version in
+   `Cargo.toml`, so a stale title doesn't break anything, but it's confusing.
+
+4. Commit, push, and merge:
+
+   ```sh
+   git commit -am "chore: release v1.0.0"
+   git push
+   gh pr edit <PR number> --title "chore: release v1.0.0"
+   ```
+
+   Merging publishes `1.0.0`, the same way as any release PR.
+
+You can also edit the version by hand in `Cargo.toml` on the PR branch. Then
+you have to change the changelog heading and `Cargo.lock` yourself.
+
+Things to watch out for:
+
+- **Do this last.** If anything else lands on `main` while the PR is open,
+  release-plz replaces the PR with a freshly computed one and your version
+  change is lost. Set the version again on the new PR.
+- **Only go up.** The version must be higher than the last published one.
+  crates.io rejects a version that already exists, and release-plz won't
+  publish it.
+- **Don't bump the version on `main` directly.** Any push to `main` with an
+  unpublished version in `Cargo.toml` makes the release job publish it
+  immediately, without a release PR and without a changelog section.
+- **After 1.0, breaking commits bump the major version automatically** (see
+  [Version bumps](#version-bumps)). Setting it by hand should then only be
+  needed for commits that are missing their `!`.
 
 ## Skipping a release
 

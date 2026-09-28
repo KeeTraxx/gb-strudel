@@ -26,6 +26,7 @@ Pipeline: `.gbs` text → `song::parse_song_file` → `SongDef` → `SongDef::co
 - `src/song.rs`: the `key = value` song file, plus compilation. Each bar becomes one 64-row pattern per channel, and bar `b` of channel `c` is global pattern `b * 4 + c` (the same interleave GB Studio's bundled songs use). Order tables get one extra trailing slot, and `padding` is 16 bytes per bar after the first. Parts shorter than the song cycle.
 - `src/uge.rs`: byte-exact reader and writer for the reverse-engineered v6 format. The module doc lists the layout. Unknown regions (the pre-instrument `u32`, instruments, wavetables, the trailing routine table) are kept as opaque bytes and written back verbatim.
 - `src/apu.rs`: an approximate preview, not an emulator. It ignores instrument definitions (envelopes, sweep, vibrato) and uses a fixed timbre per channel.
+- `src/player.rs`: live `play`. The renderer produces one stem per channel (`Renderer::render_stems`), and the cpal callback mixes them with `apu::mix`, reading mute/repeat flags from atomics that the crossterm key loop toggles. `render` is the same mix with every channel on, so `wav` output is unchanged.
 - `src/main.rs`: hand-rolled argument parsing (no clap). Flags (`--template`, `-o`) are pulled out of the argument list before dispatch.
 
 ### Templates / instruments

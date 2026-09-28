@@ -164,15 +164,28 @@ impl Renderer {
         out
     }
 
+    /// How many output samples one tracker row lasts.
+    pub fn samples_per_row(song: &Song) -> usize {
+        let rows_per_sec = FRAME_RATE / song.ticks_per_row.max(1) as f64;
+        (SAMPLE_RATE as f64 / rows_per_sec) as usize
+    }
+
     /// Render the whole song to mono f32 samples at [`SAMPLE_RATE`].
     pub fn render(&mut self, song: &Song) -> Vec<f32> {
+        let stems = self.render_stems(song);
+        (0..stems[0].len()).map(|i| mix(&stems, i, [true; CHANNELS])).collect()
+    }
+
+    /// Render each channel separately, unscaled, so a player can mute
+    /// channels live. [`mix`] combines them into what [`Renderer::render`]
+    /// produces.
+    pub fn render_stems(&mut self, song: &Song) -> [Vec<f32>; CHANNELS] {
         let rows = Self::rows(song);
-        let ticks = song.ticks_per_row.max(1) as f64;
-        let rows_per_sec = FRAME_RATE / ticks;
-        let samples_per_row = (SAMPLE_RATE as f64 / rows_per_sec) as usize;
+        let samples_per_row = Self::samples_per_row(song);
         let dt = 1.0 / SAMPLE_RATE as f64;
 
-        let mut out = Vec::with_capacity(rows.len() * samples_per_row);
+        let mut stems: [Vec<f32>; CHANNELS] =
+            std::array::from_fn(|_| Vec::with_capacity(rows.len() * samples_per_row));
         for slot in rows {
             if let Some(n) = slot[0] {
                 self.pulse[0].hz = note_hz(n);
@@ -196,21 +209,30 @@ impl Renderer {
             }
 
             for _ in 0..samples_per_row {
-                let mut s = 0.0;
-                s += self.pulse[0].sample(dt);
-                s += self.pulse[1].sample(dt);
-                s += self.wave.sample(dt);
-                s += self.noise.sample(dt);
+                stems[0].push(self.pulse[0].sample(dt));
+                stems[1].push(self.pulse[1].sample(dt));
+                stems[2].push(self.wave.sample(dt));
+                stems[3].push(self.noise.sample(dt));
                 for p in self.pulse.iter_mut() {
                     p.level *= self.decay;
                 }
                 self.wave.level *= self.decay;
                 self.noise.level *= self.noise_decay;
-                out.push((s * 0.6).clamp(-1.0, 1.0));
             }
         }
-        out
+        stems
     }
+}
+
+/// Mix sample `i` of the enabled stems into one output sample.
+pub fn mix(stems: &[Vec<f32>; CHANNELS], i: usize, enabled: [bool; CHANNELS]) -> f32 {
+    let mut s = 0.0;
+    for (stem, on) in stems.iter().zip(enabled) {
+        if on {
+            s += stem[i];
+        }
+    }
+    (s * 0.6).clamp(-1.0, 1.0)
 }
 
 impl Default for Renderer {

@@ -19,6 +19,32 @@ gb-strudel info  songs/coffee_break.uge      # describe an existing file
 gb-strudel instruments                       # list the template's instruments
 ```
 
+While `play` runs it shows a live status: position and bar on top, one line
+per channel (green when playing, red when muted), and the keys at the bottom:
+
+```
+Coffee Break
+▶ 0:02 / 0:08   bar 1/4   repeat on
+
+  1  pulse1  ● on
+  2  pulse2  ○ muted
+  3  wave    ● on
+  4  noise   ● on
+
+1-4 mute   r repeat   q quit
+```
+
+Single keys control it:
+
+| key   | action                                   |
+|-------|------------------------------------------|
+| `1`–`4` | mute/unmute `pulse1`, `pulse2`, `wave`, `noise` |
+| `r`   | toggle repeat (loop back to the start)   |
+| `q`   | quit (also `Esc` or `ctrl-c`)            |
+
+Muting only changes the preview mix; it never touches the song. When stdin
+is not a terminal (piped, scripted), `play` just plays once without controls.
+
 `play`, `wav` and `info` accept either a `.gbs` source or an existing `.uge`,
 so you can audition files that GB Studio or hUGETracker produced.
 

@@ -6,6 +6,7 @@
 
 mod apu;
 mod pattern;
+mod player;
 mod song;
 mod uge;
 
@@ -19,6 +20,7 @@ gb-strudel — compose Game Boy music as code
 USAGE:
     gb-strudel build <song.gbs> [-o out.uge]   compile to a .uge
     gb-strudel play  <song.gbs|song.uge>       preview through the speakers
+                                               (keys: 1-4 mute, r repeat, q quit)
     gb-strudel wav   <song.gbs|song.uge> <out.wav>
     gb-strudel info  <song.uge>                describe an existing .uge
     gb-strudel instruments [file.uge]          list a template's instruments
@@ -137,16 +139,12 @@ fn run(args: &[String]) -> Result<(), String> {
         "play" => {
             let input = rest.first().ok_or("play needs a song or .uge file")?;
             let s = load_any(Path::new(input), template)?;
-            let samples = apu::Renderer::new().render(&s);
-            if samples.is_empty() {
+            let stems = apu::Renderer::new().render_stems(&s);
+            if stems[0].is_empty() {
                 return Err("song has no rows to play".into());
             }
-            println!(
-                "playing {} ({:.1}s) — ctrl-c to stop",
-                if s.name.is_empty() { input.clone() } else { s.name.clone() },
-                samples.len() as f32 / apu::SAMPLE_RATE as f32
-            );
-            play(&samples)
+            let title = if s.name.is_empty() { input.clone() } else { s.name.clone() };
+            player::play(&title, stems, apu::Renderer::samples_per_row(&s))
         }
         "wav" => {
             let input = rest.first().ok_or("wav needs an input file")?;
@@ -212,53 +210,4 @@ fn encode_wav(samples: &[f32]) -> Vec<u8> {
         out.extend_from_slice(&((s.clamp(-1.0, 1.0) * 32767.0) as i16).to_le_bytes());
     }
     out
-}
-
-fn play(samples: &[f32]) -> Result<(), String> {
-    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-    use std::sync::mpsc;
-
-    let host = cpal::default_host();
-    let device = host
-        .default_output_device()
-        .ok_or("no audio output device available")?;
-    let supported = device
-        .default_output_config()
-        .map_err(|e| format!("no default output config: {e}"))?;
-    let config: cpal::StreamConfig = supported.clone().into();
-    let channels = config.channels as usize;
-    let device_rate = config.sample_rate as f64;
-
-    // Resample if the device will not run at our render rate.
-    let ratio = apu::SAMPLE_RATE as f64 / device_rate;
-    let data: Vec<f32> = samples.to_vec();
-    let total = (data.len() as f64 / ratio) as usize;
-
-    let (done_tx, done_rx) = mpsc::channel();
-    let mut pos = 0usize;
-    let stream = device
-        .build_output_stream::<f32, _, _>(
-            config,
-            move |buf: &mut [f32], _| {
-                for frame in buf.chunks_mut(channels) {
-                    let src = (pos as f64 * ratio) as usize;
-                    let v = data.get(src).copied().unwrap_or(0.0);
-                    for out in frame.iter_mut() {
-                        *out = v;
-                    }
-                    pos += 1;
-                }
-                if pos >= total {
-                    let _ = done_tx.send(());
-                }
-            },
-            |e| eprintln!("audio error: {e}"),
-            None,
-        )
-        .map_err(|e| format!("could not open audio stream: {e}"))?;
-
-    stream.play().map_err(|e| format!("could not start playback: {e}"))?;
-    let secs = total as f64 / device_rate;
-    let _ = done_rx.recv_timeout(std::time::Duration::from_secs_f64(secs + 2.0));
-    Ok(())
 }

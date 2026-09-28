@@ -9,6 +9,10 @@ targeting the Game Boy's four hardware channels instead of Web Audio.
 
 ## Install
 
+Download a prebuilt binary for Linux, macOS or Windows from the
+[releases page](https://github.com/KeeTraxx/gb-strudel/releases), or build
+it with Cargo:
+
 ```sh
 cargo install gb-strudel
 ```

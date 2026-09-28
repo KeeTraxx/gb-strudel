@@ -1,0 +1,104 @@
+# Builds gb-strudel for Linux, macOS and Windows and attaches the archives to
+# an existing GitHub release.
+#
+# Called by release-plz.yml right after it creates a release. It can't simply
+# listen for `release: published`: release-plz creates releases with the
+# built-in GITHUB_TOKEN, and GitHub doesn't start workflows for events caused
+# by that token. Run it by hand (Actions → Release binaries → Run workflow) to
+# (re)build binaries for a release that already exists.
+name: Release binaries
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to build and upload to, e.g. v0.2.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and upload to, e.g. v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One broken platform shouldn't keep the others off the release page.
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04 rather than latest: the binary needs the glibc it was built
+          # against or newer, so an older build runs on more distributions.
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+          - target: aarch64-apple-darwin
+            os: macos-15
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      # cpal links against ALSA on Linux.
+      - name: Install ALSA headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package
+        id: package
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          name="gb-strudel-$TAG-$TARGET"
+          mkdir "$name"
+          # The binary embeds GB Studio's template, so its license ships too.
+          cp README.md LICENSE templates/LICENSE-GB-STUDIO "$name/"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cp "target/$TARGET/release/gb-strudel.exe" "$name/"
+            archive="$name.zip"
+            7z a "$archive" "$name" > /dev/null
+          else
+            cp "target/$TARGET/release/gb-strudel" "$name/"
+            archive="$name.tar.gz"
+            tar czf "$archive" "$name"
+          fi
+          if command -v sha256sum > /dev/null; then
+            sha256sum "$archive" > "$archive.sha256"
+          else
+            shasum -a 256 "$archive" > "$archive.sha256"
+          fi
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        # --clobber so a re-run replaces the files instead of failing.
+        run: gh release upload "$TAG" "$ARCHIVE" "$ARCHIVE.sha256" --clobber --repo "$GITHUB_REPOSITORY"

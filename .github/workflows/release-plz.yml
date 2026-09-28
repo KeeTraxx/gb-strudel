@@ -1,5 +1,6 @@
 # Opens a release PR (version bump + CHANGELOG) on every push to main, and
-# publishes to crates.io + tags a GitHub release when that PR is merged.
+# publishes to crates.io + tags a GitHub release when that PR is merged, then
+# attaches Linux/macOS/Windows binaries to that release.
 # See https://release-plz.dev/docs/github/quickstart
 name: Release-plz
 
@@ -17,6 +18,9 @@ jobs:
       pull-requests: read
       # crates.io trusted publishing: no long-lived registry token needed.
       id-token: write
+    outputs:
+      releases_created: ${{ steps.release-plz.outputs.releases_created }}
+      releases: ${{ steps.release-plz.outputs.releases }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -27,11 +31,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
+        id: release-plz
         uses: release-plz/action@v0.5
         with:
           command: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-binaries:
+    name: Release binaries
+    needs: release-plz-release
+    if: ${{ needs.release-plz-release.outputs.releases_created == 'true' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-binaries.yml
+    with:
+      tag: ${{ fromJSON(needs.release-plz-release.outputs.releases)[0].tag }}
 
   release-plz-pr:
     name: Release-plz PR

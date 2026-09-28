@@ -6,7 +6,7 @@ version by hand. The normal flow is **merge the release PR**.
 
 ## How it works
 
-The workflow runs two jobs on every push to `main`:
+The workflow runs on every push to `main`, with three jobs:
 
 - **Release PR** (`release-plz-pr`): if any file that ends up in the published
   crate changed since the last release, it opens a PR titled
@@ -16,6 +16,21 @@ The workflow runs two jobs on every push to `main`:
 - **Release** (`release-plz-release`): if the version in `Cargo.toml` is not
   on crates.io yet, it publishes it, pushes a `vX.Y.Z` tag and creates a GitHub
   release with the changelog section as its notes. Otherwise it does nothing.
+- **Release binaries** (`release-binaries`, defined in
+  `release-binaries.yml`): only after the release job actually released
+  something. It builds the tagged commit on five runners and attaches an
+  archive plus a `.sha256` checksum per platform to the GitHub release:
+
+  | archive suffix | platform |
+  |----------------|----------|
+  | `x86_64-unknown-linux-gnu.tar.gz` | Linux x86-64 (glibc 2.35+) |
+  | `aarch64-unknown-linux-gnu.tar.gz` | Linux ARM64 (glibc 2.35+) |
+  | `x86_64-apple-darwin.tar.gz` | macOS Intel |
+  | `aarch64-apple-darwin.tar.gz` | macOS Apple silicon |
+  | `x86_64-pc-windows-msvc.zip` | Windows x86-64 |
+
+  Each archive holds the binary, `README.md`, `LICENSE` and
+  `LICENSE-GB-STUDIO`.
 
 Merging the release PR is a push to `main` with an unpublished version, which
 is what triggers the second job.
@@ -46,12 +61,14 @@ Changes to tests, CI or `RELEASE.md` alone do not open a release PR.
      release, and you can edit it directly on the PR branch.
 
 4. **Merge it.** The release job then publishes to crates.io, tags `vX.Y.Z` and
-   creates the GitHub release. Follow it under *Actions → Release-plz*.
+   creates the GitHub release, and the binaries job attaches the platform
+   archives a few minutes later. Follow it under *Actions → Release-plz*.
 
 5. **Check the result:**
    - <https://crates.io/crates/gb-strudel> shows the new version.
    - `cargo install gb-strudel` installs it.
-   - The GitHub release exists for the tag.
+   - The GitHub release exists for the tag and lists five archives and five
+     `.sha256` files.
 
 Publishing to crates.io **cannot be undone**. A bad version can only be
 yanked (`cargo yank --version X.Y.Z`), which stops new projects picking it up
@@ -118,3 +135,19 @@ opens a new one.
   which only contains the `include` list. A file the build needs that isn't
   listed there fails here. CI runs `cargo package` on every push to catch
   this earlier.
+- **A platform's binary is missing from the release.** Each platform builds
+  independently, so the others still upload. Fix the cause, then run
+  *Actions → Release binaries → Run workflow* with the tag (e.g. `v0.2.0`).
+  Re-running replaces files that already exist.
+
+## Binaries for a release made outside release-plz
+
+The binaries job hangs off release-plz, so a version published by hand, like
+the first `0.1.0`, gets none. Create the GitHub release, then run the workflow
+for its tag:
+
+```sh
+gh release create v0.1.0 --title v0.1.0 --generate-notes
+gh workflow run release-binaries.yml -f tag=v0.1.0
+```
+

@@ -175,3 +175,27 @@ fn bad_references_are_rejected() {
         );
     }
 }
+
+#[test]
+fn starter_songs_compile() {
+    // `write-basic-song` / `write-advanced-song` hand these out verbatim.
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("songs");
+    let basic = fs::read_to_string(dir.join("basic.gbs")).expect("basic.gbs");
+    let advanced = fs::read_to_string(dir.join("monkey_island_homage.gbs")).expect("advanced");
+
+    let def = song::parse_song_file(&basic).expect("basic parses");
+    def.compile(&template()).expect("basic compiles");
+    assert!(
+        !basic.lines().any(|l| l.trim_start().starts_with('&')),
+        "basic uses no sections"
+    );
+    assert!(!def.pulse1.bars.is_empty());
+    assert!(def.pulse2.bars.is_empty() && def.wave.bars.is_empty() && def.noise.bars.is_empty());
+
+    let def = song::parse_song_file(&advanced).expect("advanced parses");
+    def.compile(&template()).expect("advanced compiles");
+    assert!(
+        advanced.lines().any(|l| l.trim_start().starts_with('&')),
+        "advanced uses sections"
+    );
+}

@@ -25,7 +25,14 @@ gb-strudel play  songs/coffee_break.gbs      # preview through the speakers
 gb-strudel wav   songs/coffee_break.gbs out.wav
 gb-strudel info  songs/coffee_break.uge      # describe an existing file
 gb-strudel instruments                       # list the template's instruments
+
+gb-strudel write-basic-song                  # -> ./basic.gbs, one channel
+gb-strudel write-advanced-song               # -> ./advanced.gbs, four channels and &sections
 ```
+
+The `write-*` commands give you a commented song to start from, and take an
+optional file name (`gb-strudel write-basic-song intro.gbs`). They never
+overwrite an existing file.
 
 While `play` runs it shows a live status: position and bar on top, one line
 per channel (green when playing, red when muted), and the keys at the bottom:
@@ -254,12 +261,8 @@ cargo test
 
 ## Releasing
 
-Releases are automated with [release-plz](https://release-plz.dev). Every push
-to `main` updates a release PR that bumps the version and extends
-`CHANGELOG.md` from the commit messages, so write them as
-[conventional commits](https://www.conventionalcommits.org) (`feat:`, `fix:`,
-`chore:` ...). Merging that PR publishes to crates.io and creates a GitHub
-release. Don't edit the version in `Cargo.toml` by hand.
+Releases are automated with [release-plz](https://release-plz.dev): merging
+its release PR publishes to crates.io. See [RELEASE.md](RELEASE.md).
 
 ## License
 

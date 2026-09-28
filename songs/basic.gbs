@@ -1,0 +1,23 @@
+# A basic gb-strudel song: one channel, no sections.
+#
+#   gb-strudel play  basic.gbs      hear it
+#   gb-strudel build basic.gbs      write basic.uge for GB Studio
+#
+# A channel line is  <instrument> | <bar> | <bar> | ...
+# Each bar is split evenly between its steps, so "c4 e4 g4 c5" is four
+# quarter notes and "c4 e4" is two half notes.
+#
+#   c4 f#4 bb3   a note: letter, optional # (sharp) or b (flat), octave
+#   ~            rest
+#   .            hold the previous note for another step
+#   [e5 f5]      squeeze several notes into one step
+#   c4*4         repeat a note four times inside its step
+#
+# Add pulse2, wave (bass) and noise (drums) lines to fill it out.
+
+name   = London Bridge
+artist = Traditional
+tempo  = 2              # ticks per row: ~112 bpm with four beats per bar
+
+# pulse1 is a square-wave channel; instrument 9 is a plain 50% pulse.
+pulse1 = 9 | [g5 . . a5] [g5 f5] [e5 f5] g5 | [d5 e5] f5 [e5 f5] g5 | [g5 . . a5] [g5 f5] [e5 f5] g5 | d5 ~ [g5 . e5 .] c5

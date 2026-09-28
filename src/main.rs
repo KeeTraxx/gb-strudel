@@ -11,6 +11,7 @@ mod song;
 mod uge;
 
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -24,6 +25,9 @@ USAGE:
     gb-strudel wav   <song.gbs|song.uge> <out.wav>
     gb-strudel info  <song.uge>                describe an existing .uge
     gb-strudel instruments [file.uge]          list a template's instruments
+    gb-strudel write-basic-song    [out.gbs]   start from a one-channel song
+    gb-strudel write-advanced-song [out.gbs]   start from a four-channel song
+                                               that uses &sections
 
 The template supplying instruments and wavetables is taken from
 --template <file.uge>, or the bundled one if not given.";
@@ -63,6 +67,11 @@ fn take_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
 /// GB Studio's stock template, compiled in so an installed binary does not
 /// depend on the source tree.
 const BUNDLED_TEMPLATE: &[u8] = include_bytes!("../templates/template.uge");
+
+/// Starter songs for `write-basic-song` / `write-advanced-song`, compiled in
+/// from `songs/` so they are always valid (`tests/compile.rs` checks them).
+const BASIC_SONG: &str = include_str!("../songs/basic.gbs");
+const ADVANCED_SONG: &str = include_str!("../songs/monkey_island_homage.gbs");
 
 /// The instrument/wavetable donor. Every generated song inherits hUGETracker's
 /// stock instruments this way, so output is playable without designing any.
@@ -177,6 +186,30 @@ fn run(args: &[String]) -> Result<(), String> {
                     println!("  {:2}  {}", slot + 1, name);
                 }
             }
+            Ok(())
+        }
+        "write-basic-song" | "write-advanced-song" => {
+            let (src, default) = if cmd == "write-basic-song" {
+                (BASIC_SONG, "basic.gbs")
+            } else {
+                (ADVANCED_SONG, "advanced.gbs")
+            };
+            let out = PathBuf::from(rest.first().map(String::as_str).unwrap_or(default));
+            // create_new: never overwrite a song someone has been working on.
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&out)
+                .map_err(|e| match e.kind() {
+                    std::io::ErrorKind::AlreadyExists => format!(
+                        "{} already exists; pass another name, e.g. `gb-strudel {cmd} my_song.gbs`",
+                        out.display()
+                    ),
+                    _ => format!("{}: {e}", out.display()),
+                })?;
+            file.write_all(src.as_bytes())
+                .map_err(|e| format!("{}: {e}", out.display()))?;
+            println!("wrote {0}, try `gb-strudel play {0}`", out.display());
             Ok(())
         }
         other => Err(format!("unknown command '{other}'\n\n{USAGE}")),

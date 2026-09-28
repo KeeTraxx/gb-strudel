@@ -36,6 +36,7 @@ The tool never creates instruments. `compile` clones a template `.uge` (default 
 ## Conventions and gotchas
 
 - **CI** (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy -- -D warnings` (binary only; test crates are full of `#[path]` dead-code warnings), `cargo test` and `cargo package`. Run these before committing.
+- `songs/basic.gbs` and `songs/monkey_island_homage.gbs` are compiled into the binary (`include_str!` in `main.rs`) as the `write-basic-song` / `write-advanced-song` starters. Renaming or moving them breaks the build, and `tests/compile.rs::starter_songs_compile` checks that they still compile. Keep `basic.gbs` to one channel with no `&sections`.
 - **Releases** are cut by release-plz from conventional commit messages. Don't bump `version` by hand. A new file the binary needs at build time must be added to `include` in `Cargo.toml`, or the published crate won't build.
 
 - **There is no lib crate.** Integration tests pull modules in with `#[path = "../src/uge.rs"] mod uge;` and similar. Modules reference each other through `crate::uge`, so any test that includes `pattern.rs` or `song.rs` must also declare `mod uge`. A new module dependency means updating those `#[path]` lists in `tests/`. Items used only by some test crates need `#[allow(dead_code)]`.

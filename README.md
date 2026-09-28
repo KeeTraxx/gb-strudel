@@ -25,6 +25,8 @@ on Debian/Ubuntu, `alsa-lib` on Arch, `alsa-lib-devel` on Fedora).
 ```sh
 
 gb-strudel build songs/coffee_break.gbs      # -> songs/coffee_break.uge
+gb-strudel build songs/coffee_break.gbs ~/game/assets/music/coffee_break.uge
+                                             # or -o <path>
 gb-strudel play  songs/coffee_break.gbs      # preview through the speakers
 gb-strudel wav   songs/coffee_break.gbs out.wav
 gb-strudel info  songs/coffee_break.uge      # describe an existing file

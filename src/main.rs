@@ -19,7 +19,8 @@ const USAGE: &str = "\
 gb-strudel — compose Game Boy music as code
 
 USAGE:
-    gb-strudel build <song.gbs> [-o out.uge]   compile to a .uge
+    gb-strudel build <song.gbs> [out.uge]      compile to a .uge (default: next
+                                               to the song; -o out.uge also works)
     gb-strudel play  <song.gbs|song.uge>       preview through the speakers
                                                (keys: 1-4 mute, r repeat, q quit)
     gb-strudel wav   <song.gbs|song.uge> <out.wav>
@@ -43,25 +44,18 @@ fn main() -> ExitCode {
     }
 }
 
-/// Pull `--template <path>` out of the argument list.
-fn take_template(args: &mut Vec<String>) -> Option<PathBuf> {
-    let i = args.iter().position(|a| a == "--template")?;
+/// Pull `<flag> <value>` out of the argument list. A flag without a value is
+/// an error rather than being ignored.
+fn take_flag(args: &mut Vec<String>, flags: &[&str]) -> Result<Option<String>, String> {
+    let Some(i) = args.iter().position(|a| flags.contains(&a.as_str())) else {
+        return Ok(None);
+    };
     if i + 1 >= args.len() {
-        return None;
-    }
-    let path = PathBuf::from(args.remove(i + 1));
-    args.remove(i);
-    Some(path)
-}
-
-fn take_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
-    let i = args.iter().position(|a| a == flag)?;
-    if i + 1 >= args.len() {
-        return None;
+        return Err(format!("{} needs a value", args[i]));
     }
     let v = args.remove(i + 1);
     args.remove(i);
-    Some(v)
+    Ok(Some(v))
 }
 
 /// GB Studio's stock template, compiled in so an installed binary does not
@@ -100,14 +94,19 @@ fn load_any(path: &Path, template: Option<PathBuf>) -> Result<uge::Song, String>
 
 fn run(args: &[String]) -> Result<(), String> {
     let mut args: Vec<String> = args.to_vec();
-    let template = take_template(&mut args);
-    let out_flag = take_flag(&mut args, "-o");
+    let template = take_flag(&mut args, &["--template"])?.map(PathBuf::from);
+    let out_flag = take_flag(&mut args, &["-o", "--output"])?;
 
     let Some(cmd) = args.first().cloned() else {
         println!("{USAGE}");
         return Ok(());
     };
     let rest = &args[1..];
+    if out_flag.is_some() && cmd != "build" {
+        return Err(format!(
+            "-o only applies to build; `{cmd}` takes its output path as an argument"
+        ));
+    }
 
     match cmd.as_str() {
         "help" | "--help" | "-h" => {
@@ -116,14 +115,27 @@ fn run(args: &[String]) -> Result<(), String> {
         }
         "build" => {
             let input = rest.first().ok_or("build needs a song file")?;
+            if rest.len() > 2 {
+                return Err(format!(
+                    "build takes one output path, got: {}",
+                    rest[1..].join(" ")
+                ));
+            }
+            let out = match (out_flag, rest.get(1)) {
+                (Some(_), Some(_)) => {
+                    return Err(
+                        "give the output path either with -o or as an argument, not both".into(),
+                    );
+                }
+                (Some(flag), None) => PathBuf::from(flag),
+                (None, Some(positional)) => PathBuf::from(positional),
+                (None, None) => Path::new(input).with_extension("uge"),
+            };
             let path = Path::new(input);
             let src = fs::read_to_string(path).map_err(|e| format!("{input}: {e}"))?;
             let def = song::parse_song_file(&src).map_err(|e| format!("{input}: {e}"))?;
             let base = load_template(template)?;
             let compiled = def.compile(&base).map_err(|e| format!("{input}: {e}"))?;
-            let out = out_flag
-                .map(PathBuf::from)
-                .unwrap_or_else(|| path.with_extension("uge"));
             fs::write(&out, compiled.write()).map_err(|e| format!("{}: {e}", out.display()))?;
             println!(
                 "wrote {} ({} bars, {} patterns, {} ticks/row)",

@@ -240,22 +240,25 @@ audible in GB Studio but not in `play`/`wav`.
 
 ## The `.uge` format
 
-`src/uge.rs` documents the v6 layout, which was recovered by round-tripping the
-files that ship inside GB Studio 4.3.2 and cross-checking against
-`hUGEDriver.h`. `tests/roundtrip.rs` asserts that all 12 bundled v6 files parse
-and re-serialise byte-for-byte; that test is the real specification. v5 files
-(hUGETracker's older sample songs) are not supported.
+`src/uge.rs` documents the v6 layout. It follows GB Studio's own loader
+(`loadUGESong` in `src/shared/lib/uge/ugeHelper.ts`) and is checked against the
+files that ship inside GB Studio 4.3.2. `tests/roundtrip.rs` asserts that all 12
+bundled v6 files parse and re-serialise byte-for-byte, and that known cells
+decode to the values GB Studio shows. v5 files (hUGETracker's older sample
+songs) are not supported.
 
-Two details worth knowing if you touch the writer:
+Details worth knowing if you touch the writer:
 
-- A cell is 17 bytes — four little-endian `u32`s (note, instrument, effect
-  code, effect param) plus one unused byte. Note `90` means "no note".
-- After the `patterns * 64` cell grid there is one extra cell, then 16 bytes of
-  padding per group of four patterns past the first. Getting this wrong
-  produces a file that looks fine but shifts every order table.
-- The instrument region is 62321 bytes, four short of `45 * 1385` — the last
-  record is truncated. There is also an undocumented `u32` between the comment
-  and the first instrument.
+- The timer setting is a `u8` (enabled) followed by a `u32` (divider), not a
+  single `u32`.
+- Each pattern is a `u32` id followed by 64 cells. Order tables refer to
+  patterns by that id.
+- A cell is 17 bytes: four little-endian `u32`s (note, instrument, an unused
+  column, effect code) plus a one-byte effect param. Note `90` means "no note".
+- A byte-exact round trip is not enough on its own. A reader and writer that
+  share the same wrong framing still reproduce their input, which is how an
+  earlier version of this tool wrote files GB Studio rejected with "Song has
+  too many patterns".
 
 ## Tests
 

@@ -12,7 +12,7 @@
 //! | noise   | LFSR noise    | drums                    |
 
 use crate::pattern::{self, Event, Step};
-use crate::uge::{CHANNELS, Cell, ROWS_PER_PATTERN, Song};
+use crate::uge::{CHANNELS, Cell, Pattern, ROWS_PER_PATTERN, Song};
 use std::collections::BTreeMap;
 
 /// One bar of a channel: mini-notation plus the instrument it plays with.
@@ -91,9 +91,10 @@ impl SongDef {
 
         for bar in 0..bars {
             for (ch, part) in self.parts().iter().enumerate() {
-                let index = (bar * CHANNELS + ch) as u32;
-                patterns.push(self.render_bar(part, bar)?);
-                orders[ch].push(index);
+                let id = (bar * CHANNELS + ch) as u32;
+                let rows = self.render_bar(part, bar)?;
+                patterns.push(Pattern { id, rows });
+                orders[ch].push(id);
             }
         }
         // hUGETracker stores one slot past the end of the sequence.
@@ -108,7 +109,6 @@ impl SongDef {
         out.ticks_per_row = self.ticks_per_row.max(1);
         out.patterns = patterns;
         out.orders = orders;
-        out.padding = vec![0u8; (bars.saturating_sub(1)) * 16];
         Ok(out)
     }
 

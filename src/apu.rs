@@ -150,10 +150,10 @@ impl Renderer {
                     let Some(&pat) = order.get(step) else {
                         continue;
                     };
-                    let Some(pattern) = song.patterns.get(pat as usize) else {
+                    let Some(pattern) = song.pattern(pat) else {
                         continue;
                     };
-                    let cell = pattern[row];
+                    let cell = pattern.rows[row];
                     if cell.note < NO_NOTE {
                         *note = Some(cell.note);
                     }

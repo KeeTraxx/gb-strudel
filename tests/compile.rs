@@ -53,7 +53,7 @@ fn notes_land_on_the_right_rows_with_the_right_instrument() {
     let compiled = def.compile(&template()).expect("compile");
 
     // Bar 0 of pulse1 is pattern 0: "c4 e4 g4 c5" over 64 rows.
-    let p = &compiled.patterns[0];
+    let p = &compiled.patterns[0].rows;
     assert_eq!(p[0].note, 24); // c4
     assert_eq!(p[0].instrument, 8);
     assert_eq!(p[16].note, 28); // e4
@@ -81,7 +81,7 @@ fn sharps_are_not_mistaken_for_comments() {
 
     let def = song::parse_song_file("pulse1 = 1 | f#4 c4 # comment\n").expect("parse");
     let compiled = def.compile(&template()).expect("f#4 is a valid note");
-    assert_eq!(compiled.patterns[0][0].note, 30); // f#4
+    assert_eq!(compiled.patterns[0].rows[0].note, 30); // f#4
 }
 
 #[test]
@@ -115,8 +115,8 @@ pulse1 = 9 | &intro | c4 e4 | &intro
     );
     let compiled = def.compile(&template()).expect("compile");
     assert_eq!(compiled.orders[0].len(), 6);
-    assert_eq!(compiled.patterns[2 * 4][0].instrument, 9);
-    assert_eq!(compiled.patterns[3 * 4][0].instrument, 8);
+    assert_eq!(compiled.patterns[2 * 4].rows[0].instrument, 9);
+    assert_eq!(compiled.patterns[3 * 4].rows[0].instrument, 8);
 }
 
 #[test]
@@ -198,4 +198,28 @@ fn starter_songs_compile() {
         advanced.lines().any(|l| l.trim_start().starts_with('&')),
         "advanced uses sections"
     );
+}
+
+#[test]
+fn compiled_song_matches_gb_studio_framing() {
+    // Offsets GB Studio's loader uses: header, 45 instruments, 16 waves,
+    // ticks (u32), timer enabled (u8), timer divider (u32), pattern count.
+    const PATTERN_COUNT_AT: usize = 4 + 3 * 256 + 45 * 1385 + 16 * 32 + 4 + 1 + 4;
+    const CELL: usize = 17;
+    let u32_at = |b: &[u8], o: usize| u32::from_le_bytes(b[o..o + 4].try_into().unwrap());
+
+    let def = song::parse_song_file(SRC).expect("parse");
+    let bytes = def.compile(&template()).expect("compile").write();
+
+    assert_eq!(u32_at(&bytes, PATTERN_COUNT_AT), 8);
+    let first_pattern = PATTERN_COUNT_AT + 4;
+    assert_eq!(u32_at(&bytes, first_pattern), 0, "pattern id");
+    assert_eq!(u32_at(&bytes, first_pattern + 4), 24, "row 0 note (c4)");
+    assert_eq!(u32_at(&bytes, first_pattern + 8), 8, "row 0 instrument");
+    assert_eq!(u32_at(&bytes, first_pattern + 4 + CELL), uge::NO_NOTE);
+    let second_pattern = first_pattern + 4 + 64 * CELL;
+    assert_eq!(u32_at(&bytes, second_pattern), 1, "pattern id");
+    let orders = first_pattern + 8 * (4 + 64 * CELL);
+    assert_eq!(u32_at(&bytes, orders), 3, "channel 0 order length");
+    assert_eq!(u32_at(&bytes, orders + 8), 4, "channel 0, step 1");
 }

@@ -1,0 +1,49 @@
+# Monkey Island Homage — an original island tune in E minor, written in the
+# spirit of Michael Land's Monkey Island theme (off-beat reggae skank, a
+# walking bass, a swaggering pirate lead). None of the notes are from the
+# original.
+#
+# Tempo 2 with four beats per bar is 112.5 bpm; one bar per chord.
+# A section: Em | D | C | B7 (the Andalusian cadence, with a D# leading tone).
+# B section: Am | Em | D | B.
+
+name   = Monkey Island Homage
+artist = gb-strudel
+tempo  = 2
+
+# --- Lead (pulse1), sixteenth-note grid ---------------------------------
+
+&a_head = 8 | e5 . . . b4 . e5 . g5 . . f#5 e5 . . . | f#5 . . . d5 . a4 . d5 . e5 . f#5 . . . | g5 . . . e5 . c5 . e5 . . g5 c6 . b5 .
+&open   = 8 | b5 . . . a5 . f#5 . d#5 . . . ~ . . .
+&close  = 8 | b5 . a5 . f#5 . d#5 . b4 . . . ~ . . .
+&a      = &a_head &open
+&a2     = &a_head &close
+
+# The B section goes up to the vibrato pulse for a brighter lift.
+&b = 10 | c6 . . . b5 . a5 . e5 . . . a5 . c6 . | b5 . . . g5 . e5 . b4 . . . e5 . g5 . | a5 . . . f#5 . d5 . a4 . . . d5 . f#5 . | d#5 . . . f#5 . b5 . . . . . ~ . . .
+
+# --- Skank (pulse2): short stabs on every off-beat ------------------------
+
+&skank_a = 6 | ~ b4 ~ g4 ~ b4 ~ g4 | ~ a4 ~ f#4 ~ a4 ~ f#4 | ~ g4 ~ e4 ~ g4 ~ e4 | ~ a4 ~ f#4 ~ a4 ~ d#4
+&skank_b = 6 | ~ c5 ~ a4 ~ c5 ~ a4 | ~ b4 ~ g4 ~ b4 ~ g4 | ~ a4 ~ f#4 ~ a4 ~ f#4 | ~ b4 ~ f#4 ~ b4 ~ d#4
+
+# --- Bass (wave): triangle, root on the one, walking into the next chord --
+
+&bass_a = 11 | e2 . ~ b2 e3 d3 b2 g2 | d2 . ~ a2 d3 a2 f#2 a2 | c2 . ~ g2 c3 b2 g2 e2 | b2 . ~ f#2 b2 a2 f#2 d#2
+&bass_b = 11 | a2 . ~ e2 a2 g2 e2 c2 | e2 . ~ b2 e3 d3 b2 g2 | d2 . ~ a2 d3 a2 f#2 a2 | b2 . ~ f#2 b2 a2 f#2 d#2
+
+# --- Drums (noise): hats for the intro, then a one-drop -------------------
+
+&hats = 1 | c6*8
+# One instrument per bar, so the one-drop is a single snare voice: high,
+# quiet-ish ticks on the off-beats and the low hit landing on beat three.
+&drop = 8 | ~ c7 ~ c7 c4 c7 ~ c7
+
+&rest = ~
+
+# --- Arrangement: intro 4, A 4, A' 4, B 4, A' 4 --------------------------
+
+pulse1 = 8 | &rest*4 &a &a2 &b &a2
+pulse2 = &skank_a*3 &skank_b &skank_a
+wave   = &bass_a*3 &bass_b &bass_a
+noise  = &hats*4 &drop*16

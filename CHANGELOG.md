@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0](https://github.com/KeeTraxx/gb-strudel/compare/v0.1.2...v1.0.0) - 2026-09-28
+
+### Fixed
+
+- improve UGE format
+
 ## [0.1.2](https://github.com/KeeTraxx/gb-strudel/compare/v0.1.1...v0.1.2) - 2026-09-28
 
 ### Added

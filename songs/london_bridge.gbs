@@ -1,0 +1,18 @@
+# London Bridge — the traditional nursery rhyme in C.
+# One verse is four bars; each bar holds two of the tune's 2/4 phrases.
+
+name   = London Bridge
+artist = Traditional
+tempo  = 2              # ticks per row: 60Hz / 2 = 30 rows per second, ~112 bpm
+
+# Melody: dotted "Lon-don" on beat one, then straight eighths and quarters.
+pulse1 = 9 | [g5 . . a5] [g5 f5] [e5 f5] g5 | [d5 e5] f5 [e5 f5] g5 | [g5 . . a5] [g5 f5] [e5 f5] g5 | d5 g5 e5 c5
+
+# Off-beat chord tones: C, then G -> C, then C, then G -> C.
+pulse2 = 6 | ~ e4 ~ g4 | ~ d4 ~ e4 | ~ e4 ~ g4 | ~ b3 ~ e4
+
+# Root-fifth bass on the wave channel.
+wave   = 11 | c3 g2 c3 g2 | g2 d3 c3 g2 | c3 g2 c3 g2 | g2 d3 c3 ~
+
+# Closed hi-hat eighths.
+noise  = 1 | c4*8

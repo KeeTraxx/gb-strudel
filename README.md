@@ -50,6 +50,34 @@ sweep unit, `wave` plays a 32-sample wavetable, and `noise` is the LFSR:
 | `wave`   | 32-sample wavetable | bass                     |
 | `noise`  | LFSR noise          | drums                    |
 
+### Sections (`&name`)
+
+A line whose key starts with `&` defines a named run of bars instead of a
+channel. A channel line can then use `&name` anywhere a bar can go, mixed with
+inline bars:
+
+```
+&intro = 8 | c4 ~ a3 c4 | d4 ~ c4 ~ | as3 d4 c4 as3 | a3 ~ g3 ~
+&verse = 9 | f4 . a4 ~ | g4 ~ e4 ~
+
+pulse1 = 6 | &intro | c4 e4 g4 c5 | &verse*2 &intro
+```
+
+- A section keeps its own instrument. Above, the `&intro` bars play on 8, the
+  inline `c4 e4 g4 c5` bar on 6 and `&verse` on 9.
+- A section without a leading number (`&riff = c4 e4 | g4`) takes the
+  instrument of the line that uses it, which lets one riff be shared between
+  channels with different sounds.
+- A line made only of references can drop the instrument:
+  `pulse1 = &intro &verse`. Any inline bar still needs one.
+- Several references can share one `|` slot, separated by spaces, and
+  `&name*N` repeats a section N times.
+- Sections can reference other sections and can be defined after they are
+  used. Undefined, duplicate or circular references are build errors.
+
+`<a b>` alternation still counts song bars, not bars within the section, so a
+section's alternation depends on where it lands in the song.
+
 ### Tempo
 
 `tempo` is ticks per row, not BPM. The driver ticks at 60 Hz and every bar is

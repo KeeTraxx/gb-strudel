@@ -15,13 +15,21 @@ use crate::pattern::{self, Event, Step};
 use crate::uge::{Cell, Song, CHANNELS, ROWS_PER_PATTERN};
 use std::collections::BTreeMap;
 
+/// One bar of a channel: mini-notation plus the instrument it plays with.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Bar {
+    pub src: String,
+    /// Instrument index within the channel's bank (1-15, 0 = none).
+    pub instrument: u32,
+}
+
 /// One channel's part.
 #[derive(Clone, Debug, Default)]
 pub struct Part {
-    /// Mini-notation, one string per bar. Bars cycle if the song is longer.
-    pub bars: Vec<String>,
-    /// Instrument index within this channel's bank (1-15, 0 = none).
-    pub instrument: u32,
+    /// One entry per bar. Bars cycle if the song is longer. Each bar carries
+    /// its own instrument because `&name` references can splice in bars
+    /// written for a different instrument.
+    pub bars: Vec<Bar>,
 }
 
 impl Part {
@@ -29,8 +37,13 @@ impl Part {
     #[allow(dead_code)]
     pub fn new(instrument: u32, bars: &[&str]) -> Part {
         Part {
-            bars: bars.iter().map(|s| s.to_string()).collect(),
-            instrument,
+            bars: bars
+                .iter()
+                .map(|s| Bar {
+                    src: s.to_string(),
+                    instrument,
+                })
+                .collect(),
         }
     }
 }
@@ -104,7 +117,7 @@ impl SongDef {
         if part.bars.is_empty() {
             return Ok(cells);
         }
-        let src = &part.bars[bar % part.bars.len()];
+        let Bar { src, instrument } = &part.bars[bar % part.bars.len()];
         let steps: Vec<Step> = pattern::parse(src)?;
         let events = pattern::render(&steps, ROWS_PER_PATTERN, bar);
 
@@ -114,7 +127,7 @@ impl SongDef {
                 Event::Strike(note) => {
                     cells[row] = Cell {
                         note: *note,
-                        instrument: part.instrument,
+                        instrument: *instrument,
                         ..Cell::EMPTY
                     };
                 }
@@ -137,48 +150,126 @@ fn strip_comment(line: &str) -> &str {
     line
 }
 
+/// A bar before instruments are settled: `None` means "use the instrument of
+/// whichever line references me".
+type RawBar = (String, Option<u32>);
+
+/// A channel or `&name` line, kept unexpanded until every definition is known
+/// so references may point forward.
+struct RawLine<'a> {
+    lineno: usize,
+    value: &'a str,
+}
+
+/// Expand one line's value into bars, resolving `&name` references.
+///
+/// The value is `[instrument |] item | item ...`. An item is either
+/// mini-notation for one bar or a whitespace-separated list of references
+/// (`&intro &verse*2`). A referenced bar keeps its definition's instrument if
+/// it has one, and otherwise takes this line's.
+fn expand<'a>(
+    line: &RawLine<'a>,
+    defs: &BTreeMap<&'a str, RawLine<'a>>,
+    stack: &mut Vec<&'a str>,
+) -> Result<Vec<RawBar>, String> {
+    let at = line.lineno;
+    let mut chunks = line.value.split('|').map(str::trim).peekable();
+    let instrument = match chunks.peek().map(|h| h.parse::<u32>()) {
+        Some(Ok(n)) => {
+            chunks.next();
+            Some(n)
+        }
+        _ => None,
+    };
+
+    let mut bars = Vec::new();
+    for chunk in chunks {
+        if !chunk.starts_with('&') {
+            bars.push((chunk.to_string(), instrument));
+            continue;
+        }
+        for token in chunk.split_whitespace() {
+            let reference = token
+                .strip_prefix('&')
+                .ok_or_else(|| format!("line {at}: '{token}' is in a bar of references; put notes in their own bar"))?;
+            let (name, times) = match reference.split_once('*') {
+                Some((name, n)) => match n.parse::<usize>() {
+                    Ok(n) if n > 0 => (name, n),
+                    _ => return Err(format!("line {at}: '{token}' needs a positive repeat count")),
+                },
+                None => (reference, 1),
+            };
+            let (&name, def) = defs
+                .get_key_value(name)
+                .ok_or_else(|| format!("line {at}: '&{name}' is not defined"))?;
+            if stack.contains(&name) {
+                let chain: Vec<String> = stack.iter().chain([&name]).map(|n| format!("&{n}")).collect();
+                return Err(format!("line {at}: circular reference {}", chain.join(" -> ")));
+            }
+            stack.push(name);
+            let expanded = expand(def, defs, stack)?;
+            stack.pop();
+            for _ in 0..times {
+                bars.extend(
+                    expanded
+                        .iter()
+                        .map(|(src, inst)| (src.clone(), inst.or(instrument))),
+                );
+            }
+        }
+    }
+    if bars.is_empty() {
+        return Err(format!("line {at}: no bars"));
+    }
+    Ok(bars)
+}
+
 /// Parse the simple `key = value` song file format.
 ///
 /// ```text
 /// name   = Coffee Break
 /// tempo  = 6            # ticks per row
-/// pulse1 = 3 | c4 e4 g4 c5 | <a4 f4> ~ c5 ~
+/// &hook  = 3 | c4 e4 g4 c5 | <a4 f4> ~ c5 ~
+/// pulse1 = 5 | &hook*2 | g4 . . ~
 /// wave   = 2 | c2*4
 /// ```
 ///
 /// Bars are separated by `|`; the number before the first `|` is the
-/// instrument. Blank lines and `#` comments are ignored; a comment's `#` must
-/// start a word, so it cannot be confused with a sharp.
+/// instrument. `&name = ...` defines a reusable run of bars, which any
+/// channel or definition can splice in as a bar item. Blank lines and `#`
+/// comments are ignored; a comment's `#` must start a word, so it cannot be
+/// confused with a sharp.
 pub fn parse_song_file(src: &str) -> Result<SongDef, String> {
     let mut def = SongDef {
         ticks_per_row: 6,
         ..Default::default()
     };
-    let mut seen: BTreeMap<&str, ()> = BTreeMap::new();
+    let mut defs: BTreeMap<&str, RawLine> = BTreeMap::new();
+    let mut channels: Vec<(&str, RawLine)> = Vec::new();
 
     for (lineno, raw) in src.lines().enumerate() {
+        let lineno = lineno + 1;
         let line = strip_comment(raw).trim();
         if line.is_empty() {
             continue;
         }
         let (key, value) = line
             .split_once('=')
-            .ok_or_else(|| format!("line {}: expected 'key = value'", lineno + 1))?;
+            .ok_or_else(|| format!("line {lineno}: expected 'key = value'"))?;
         let key = key.trim();
         let value = value.trim();
 
-        let part = || -> Result<Part, String> {
-            let mut chunks = value.split('|');
-            let head = chunks.next().unwrap_or("").trim();
-            let instrument: u32 = head
-                .parse()
-                .map_err(|_| format!("line {}: '{head}' is not an instrument number", lineno + 1))?;
-            let bars: Vec<String> = chunks.map(|c| c.trim().to_string()).collect();
-            if bars.is_empty() {
-                return Err(format!("line {}: no bars after instrument", lineno + 1));
+        if let Some(name) = key.strip_prefix('&') {
+            let valid = !name.is_empty()
+                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+            if !valid {
+                return Err(format!("line {lineno}: '&{name}' is not a valid name"));
             }
-            Ok(Part { bars, instrument })
-        };
+            if let Some(prev) = defs.insert(name, RawLine { lineno, value }) {
+                return Err(format!("line {lineno}: '&{name}' is already defined on line {}", prev.lineno));
+            }
+            continue;
+        }
 
         match key {
             "name" => def.name = value.to_string(),
@@ -186,22 +277,42 @@ pub fn parse_song_file(src: &str) -> Result<SongDef, String> {
             "tempo" | "ticks" => {
                 def.ticks_per_row = value
                     .parse()
-                    .map_err(|_| format!("line {}: '{value}' is not a tick count", lineno + 1))?
+                    .map_err(|_| format!("line {lineno}: '{value}' is not a tick count"))?
             }
             "bars" => {
                 def.bars = Some(
                     value
                         .parse()
-                        .map_err(|_| format!("line {}: '{value}' is not a bar count", lineno + 1))?,
+                        .map_err(|_| format!("line {lineno}: '{value}' is not a bar count"))?,
                 )
             }
-            "pulse1" => def.pulse1 = part()?,
-            "pulse2" => def.pulse2 = part()?,
-            "wave" => def.wave = part()?,
-            "noise" => def.noise = part()?,
-            other => return Err(format!("line {}: unknown key '{other}'", lineno + 1)),
+            "pulse1" | "pulse2" | "wave" | "noise" => channels.push((key, RawLine { lineno, value })),
+            other => return Err(format!("line {lineno}: unknown key '{other}'")),
         }
-        seen.insert(key, ());
+    }
+
+    for (key, line) in channels {
+        let bars = expand(&line, &defs, &mut Vec::new())?
+            .into_iter()
+            .enumerate()
+            .map(|(i, (src, instrument))| {
+                let instrument = instrument.ok_or_else(|| {
+                    format!(
+                        "line {}: bar {} of {key} has no instrument; start the line with one, e.g. '{key} = 8 | ...'",
+                        line.lineno,
+                        i + 1
+                    )
+                })?;
+                Ok(Bar { src, instrument })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let part = Part { bars };
+        match key {
+            "pulse1" => def.pulse1 = part,
+            "pulse2" => def.pulse2 = part,
+            "wave" => def.wave = part,
+            _ => def.noise = part,
+        }
     }
     Ok(def)
 }

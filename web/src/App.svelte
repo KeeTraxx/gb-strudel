@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import { compile, instrumentNames, sampleRate } from './pkg/gb_strudel_wasm.js';
   import { CHANNELS, Player } from './player.js';
+  import Help from './Help.svelte';
 
   // Every song in ../songs, keyed by file name without the extension.
   const examples = Object.fromEntries(
@@ -26,6 +27,7 @@
   let playing = $state(false);
   let position = $state(0);
   let duration = $state(0);
+  let help;
   const player = new Player();
   player.setRepeat(true);
   let muted = $state([...player.muted]);
@@ -149,8 +151,11 @@
       {/each}
     </select>
     <button onclick={downloadUge} disabled={!!error}>⤓ .uge</button>
+    <button onclick={() => help.open()}>? Help</button>
   </div>
 </header>
+
+<Help bind:this={help} />
 
 <main>
   <section class="editor">

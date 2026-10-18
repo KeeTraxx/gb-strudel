@@ -69,6 +69,28 @@ is not a terminal (piped, scripted), `play` just plays once without controls.
 `play`, `wav` and `info` accept either a `.gbs` source or an existing `.uge`,
 so you can audition files that GB Studio or hUGETracker produced.
 
+## Web editor
+
+A browser version lives at <https://keetraxx.github.io/gb-strudel/>. It runs
+the same compiler and preview as the CLI, compiled to WebAssembly. Edit a song,
+press `ctrl+enter` to play (pressing it again while playing picks up your edits
+in place), `ctrl+.` to stop, mute channels in the sidebar, and download the
+`.uge` for GB Studio. Your song is kept in the browser's local storage.
+
+To run it locally you need Node, the `wasm32-unknown-unknown` Rust target and
+a `wasm-bindgen` CLI matching the version pinned in `web/wasm/Cargo.toml`:
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.128
+just web-dev        # dev server with hot reload
+just web-build      # production build into web/dist
+just web-preview    # build, then serve web/dist
+```
+
+Without [just](https://just.systems), run `npm install && npm run dev` in
+`web/`.
+
 ## Song files
 
 ```

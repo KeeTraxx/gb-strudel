@@ -1,0 +1,20 @@
+# The browser build of gb-strudel. It compiles the same modules as the CLI
+# (pulled in with #[path] from ../../src) and is not part of the published
+# crate: the root Cargo.toml's `include` list leaves web/ out.
+[package]
+name = "gb-strudel-wasm"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Must match the wasm-bindgen CLI exactly (see .github/workflows/pages.yml).
+wasm-bindgen = "=0.2.128"
+
+[profile.release]
+opt-level = "s"
+lto = true

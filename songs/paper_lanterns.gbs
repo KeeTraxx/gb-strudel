@@ -1,0 +1,19 @@
+# Paper Lanterns — a slow ballad in Eb major, 16 bars at 75 BPM.
+# Chords: Eb Cm7 Ab Bb7 | Eb Gm7 Cm7 Bb7 | Ab Fm7 Bb7 Eb | Cm7 F7 Bb7 Eb
+# Instrument numbers index the .uge template's banks (1-15 per channel).
+
+name   = Paper Lanterns
+artist = plumberduck
+tempo  = 3              # ticks per row: 4 beats of 16 rows at 60/3 = 20 rows/sec, 75 bpm
+
+# Lead: soft sweep pulse, long sung notes with a breath after each phrase.
+pulse1 = 12 | bb4 . eb5 . | g5 . [f5 eb5] d5 | c5 [bb4 c5] eb5 . | f5 . d5 ~ | g4 bb4 eb5 . | d5 . bb4 g4 | c5 . eb5 d5 | c5 . bb4 . | ab5 . g5 f5 | ab5 . c6 . | bb5 . ab5 g5 | g5 . f5 eb5 | c5 . eb5 g5 | a5 . f5 . | g5 . f5 d5 | eb5 . . .
+
+# Harmony: a fading pulse holding the chord tones under the melody.
+pulse2 = 2 | g3 . bb3 . | eb3 . g3 . | c4 . eb4 . | d4 . f4 . | bb3 . g3 . | d4 . bb3 . | eb4 . g4 . | f4 . d4 . | c4 . eb4 . | c4 . ab3 . | d4 . f4 . | g3 . bb3 . | eb4 . g4 . | a3 . c4 . | d4 . f4 . | g3 . . .
+
+# Bass: triangle wave, one root and fifth per bar.
+wave   = 11 | eb2 . bb2 . | c2 . g2 . | ab2 . eb3 . | bb2 . f2 . | eb2 . bb2 . | g2 . d3 . | c2 . g2 . | bb2 . f2 . | ab2 . eb3 . | f2 . c3 . | bb2 . f2 . | eb2 . bb2 . | c2 . g2 . | f2 . c3 . | bb2 . f2 . | eb2 . . .
+
+# Brushes: silent for the intro, then soft hi-hat on beats 2 and 4.
+noise  = 2 | ~ ~ ~ ~ | ~ ~ ~ ~ | ~ ~ ~ ~ | ~ ~ ~ ~ | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ c4 ~ c4 | ~ ~ ~ ~ | ~ ~ ~ ~

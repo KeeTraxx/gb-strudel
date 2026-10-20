@@ -201,6 +201,19 @@ fn starter_songs_compile() {
 }
 
 #[test]
+fn paper_lanterns_is_a_sixteen_bar_ballad() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("songs");
+    let src = fs::read_to_string(dir.join("paper_lanterns.gbs")).expect("paper_lanterns.gbs");
+
+    let def = song::parse_song_file(&src).expect("parses");
+    def.compile(&template()).expect("compiles");
+    assert_eq!(def.ticks_per_row, 3, "75 bpm in 4/4");
+    for part in [&def.pulse1, &def.pulse2, &def.wave, &def.noise] {
+        assert_eq!(part.bars.len(), 16);
+    }
+}
+
+#[test]
 fn compiled_song_matches_gb_studio_framing() {
     // Offsets GB Studio's loader uses: header, 45 instruments, 16 waves,
     // ticks (u32), timer enabled (u8), timer divider (u32), pattern count.
